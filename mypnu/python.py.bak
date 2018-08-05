@@ -138,7 +138,7 @@ print(len(site_blame))
 print(len(site_vote))
 print(len(site_date))
 
-with open("temp.txt",'w',encoding='utf-8') as f:
+with open("text.txt",'w',encoding='utf-8') as f:
 	for a,b,c,d,e in zip(site_title,site_vote,site_date,site_blame,site_no):
 		f.write(",".join((a,b,c,d,e))+'\n')
 
