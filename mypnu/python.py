@@ -1,0 +1,147 @@
+import os 
+import requests
+from bs4 import BeautifulSoup as bs
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+
+start_time = time.time()
+
+site_id = 'mypnu id'
+site_pw = 'password'
+
+html_tag_start = """
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Document</title>
+<!-- CSS -->
+<link rel="stylesheet" href="https://mypnu.net/common/css/xe.min.css?20171201001642" />
+<link rel="stylesheet" href="https://mypnu.net/addons/oembed/jquery.oembed.min.css?20171201001642" />
+<link rel="stylesheet" href="https://mypnu.net/common/js/plugins/ui/jquery-ui.min.css?20171201001648" />
+<link rel="stylesheet" href="https://mypnu.net/addons/sejin7940_addvote/tpl/addvote.css?20170602224720" />
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" />
+<link rel="stylesheet" href="https://mypnu.net/modules/board/skins/sketchbook5/css/board.css?20160114114749" />
+<!--[if lt IE 9]><link rel="stylesheet" href="https://mypnu.net/modules/board/skins/sketchbook5/css/ie8.css?20160114114749" />
+<![endif]--><link rel="stylesheet" href="https://mypnu.net/layouts/stylish/css/layout.css?20180221015111" />
+<link rel="stylesheet" href="https://mypnu.net/layouts/stylish/css/colorset_space.css?20180221015111" />
+<link rel="stylesheet" href="https://mypnu.net/modules/editor/styles/default/style.css?20171201001723" />
+<link rel="stylesheet" href="https://mypnu.net/widgets/login_info/skins/stylish/css/stylishl.css?20131127091136" />
+<link rel="stylesheet" href="https://mypnu.net/widgets/coinslider/skins/default/css/coin-slider-styles.css?20150120204729" />
+</head>
+<body>
+"""
+html_tag_end= """
+</body>
+</html>
+"""
+
+driver = webdriver.Chrome()
+driver.get('http://mypnu.net/')
+time.sleep(2)
+driver.find_element_by_css_selector( '#signin_link > span' ).click()
+time.sleep(1)
+driver.find_element_by_css_selector( '#uid' ).send_keys(site_id)
+driver.find_element_by_css_selector( '#upw' ).send_keys(site_pw)
+driver.find_element_by_css_selector( '#login_panel > div > div.login_submit > button' ).click()
+site_date = []
+site_list = []
+site_no = []
+site_title = []
+for page in range(1,21):
+	driver.get('http://mypnu.net/index.php?mid=street&category=4676&page='+str(page))
+	bsObj = bs(driver.page_source, 'html.parser')
+	titles = bsObj.findAll('tbody')
+
+	for temp in titles[1].findAll('tr'):
+		board_no = str.strip(temp.find('td',{'class' : 'no'}).get_text())
+		if(str.isnumeric(board_no)):
+			#t = str.strip(temp.find('td',{'class' : 'title'}).a.get_text())
+			#t = t.replace(","," ")
+			#site_title.append(t)
+			#print(temp.find('td',{'class' : 'title'}).a.attrs['href'])
+			#print(board_no)
+			site_list.append(temp.find('td',{'class' : 'title'}).a.attrs['href'])
+			site_no.append(board_no)
+
+		
+	time.sleep(2)
+
+site_vote = []
+site_blame = []
+
+remove_list = []
+remove_no = []
+
+print(len(site_no))
+print(site_no)
+print(len(site_list))
+print(zip(site_list,site_no))
+
+
+for site_url, no in zip(site_list,site_no):
+
+	driver.get(site_url)
+	html = driver.page_source
+	bsObj = bs(html,'html.parser')
+	content_tag = bsObj.find('div',{'class':'rd rd_nav_style2 clear'})
+	#print("no"+str(no))
+	#print(str(site_url))
+	if content_tag is None:
+		remove_list.append(site_url)
+		remove_no.append(no)
+		#print(site_list)
+		#print(site_no)
+		continue
+	#print("if1 no"+str(no))
+	#print(str(site_url))
+	
+	x = content_tag.find('span',{'id':'document_voted_count'}).get_text()
+	y = content_tag.find('span',{'id':'document_blamed_count'}).get_text()
+	z = content_tag.find('div',{'class':'top_area ngeb'})
+	date = z.span.get_text()
+	title = z.h1.get_text()
+
+	if title.find("블라인드 처리되었습니다")>=0:
+		remove_list.append(site_url)
+		remove_no.append(no)
+		continue
+	#print("if2 no"+str(no))
+	#print(str(site_url))
+
+	site_title.append(str.strip(title).replace(","," "))
+	site_date.append(str.strip(date))
+	site_vote.append(x)
+	site_blame.append(y)
+
+
+	content_tag = str(content_tag).replace( r'"/files/attach/images',r'"https://mypnu.net/files/attach/images')
+	
+	html = str(html_tag_start)+str(content_tag)+str(html_tag_end)
+	filepath = 'src/' +str(no)+'.html'
+	with open(filepath,'w',encoding='utf-8') as f:
+		f.write(html)
+	
+
+
+	time.sleep(3)
+
+for y in remove_no:
+	site_no.remove(y)
+
+
+print(len(site_title))
+print(len(site_no))
+print(len(site_blame))
+print(len(site_vote))
+print(len(site_date))
+
+with open("text.txt",'w',encoding='utf-8') as f:
+	for a,b,c,d,e in zip(site_title,site_vote,site_date,site_blame,site_no):
+		f.write(",".join((a,b,c,d,e))+'\n')
+
+
+
+print("걸린시간 :"+str(time.time()-start_time))
